@@ -25,14 +25,14 @@ class DepartmentSerializer(serializers.ModelSerializer):
       fields='__all__'   
 
 class SpecializationSerializer(serializers.ModelSerializer):
-    university = UniversitySerializer()
+    # university = UniversitySerializer()
 
     class Meta:
       model = Specialization
       fields='__all__' 
 
 class SemesterSerializer(serializers.ModelSerializer):
-    university = UniversitySerializer()
+    # university = UniversitySerializer()
 
     class Meta:
       model = Semester
@@ -60,7 +60,7 @@ class TeacherSerializer(serializers.ModelSerializer):
       fields='__all__' 
 
 class VideoSerializer(serializers.ModelSerializer):
-    university = UniversitySerializer()
+    # university = UniversitySerializer()
 
     class Meta:
       model = Video
@@ -69,6 +69,11 @@ class VideoSerializer(serializers.ModelSerializer):
 class CourseSerializer(serializers.ModelSerializer):
     university = UniversitySerializer()
     department = DepartmentSerializer()
+    specialization = SpecializationSerializer()
+    semester = SemesterSerializer()
+    video = VideoSerializer()
+    # subject = SubjectSerializer()
+    # module = ModuleSerializer()
 
     class Meta:
         model = Course
@@ -77,6 +82,8 @@ class CourseSerializer(serializers.ModelSerializer):
 class PurchasedCourseSerializer(serializers.ModelSerializer):
     university = UniversitySerializer()
     department = DepartmentSerializer()
+    specialization = SpecializationSerializer()
+    semester = SemesterSerializer()
     
     class Meta:
         model = PurchasedCourse

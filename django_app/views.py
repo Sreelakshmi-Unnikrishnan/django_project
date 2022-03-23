@@ -79,6 +79,11 @@ def explore_course(request):
             department = request.data['department']
         except KeyError:
             return Response({"Error": "Select department"}, status=status.HTTP_403_FORBIDDEN) 
+        
+        try:
+            specialization = request.data['specialization']
+        except KeyError:
+            return Response({"Error": "Select specialization"}, status=status.HTTP_403_FORBIDDEN) 
 
         try:
             semester = request.data['semester']
@@ -91,10 +96,11 @@ def explore_course(request):
             return Response({"Error": "Select subject"}, status=status.HTTP_403_FORBIDDEN) 
 
         course = Course.objects.filter(
-            university__university__icontains=university, 
-            department__department__icontains=department,
-            semester__semester__icontains=semester,
-            video__subject__subject__icontains=subject,
+            university__university=university, 
+            department__department=department,
+            specialization__specialization=specialization,
+            semester__semester=semester,
+            video__subject__subject=subject,
             active=True)
         print("---", course.count())
         if course.count() <= 0:
@@ -129,6 +135,12 @@ def purchased_courses(request, token):
             department = request.data['department']
         except KeyError:
             return Response({"Error": "Department not provided!"}, status=status.HTTP_400_BAD_REQUEST) 
+
+        try:
+            specialization = request.data['specialization']
+        except KeyError:
+            return Response({"Error": "Specialization not provided"}, status=status.HTTP_403_FORBIDDEN) 
+
             
         try:
             semester = request.data['semester']
@@ -154,12 +166,19 @@ def purchased_courses(request, token):
         except Department.DoesNotExist:
             return Response({"Error": "department does not exist!"}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:        
+            specialization_query = Specialization.objects.get(specialization=specialization)
+        except Specialization.DoesNotExist:
+            return Response({"Error": "specialization does not exist!"}, status=status.HTTP_400_BAD_REQUEST)
+
+
         courses = Course.objects.filter(
             university=university_query,
             department=department_query,
-            semester=semester,
-            subject=subject,
-            module=module
+            specialization=specialization_query,
+            semester__semester=semester,
+            video__subject__subject=subject,
+            video__module__module_no=module
             ).order_by('id')
 
         course_serializer = CourseSerializer(courses, many=True)
@@ -174,9 +193,9 @@ def purchasing_course_details(request):
             return Response({"Error": "University not provided!"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            branch = request.data['branch']
+            department = request.data['department']
         except KeyError:
-            return Response({"Error": "Branch not provided!"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"Error": "Department not provided!"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             semester = request.data['semester']
@@ -184,21 +203,21 @@ def purchasing_course_details(request):
             return Response({"Error": "Semester not provided!"}, status=status.HTTP_403_FORBIDDEN)
 
 
-        courses = Course.objects.filter(university__university=university, branch__title=branch, semester=semester)
+        courses = Course.objects.filter(university__university=university, department__department=department, semester__semester=semester)
         subject_count = 0
         module_count = 0
         videos_count = courses.count()
 
         subject_dict = {}
         for course in courses:
-            subject_dict[course.subject] = 0
+            subject_dict[course.video.subject] = 0
 
         for sb_dic in subject_dict.keys():
             subject_count += 1
 
         module_dict = {}
         for course in courses:
-            module_dict[course.module] = 0
+            module_dict[course.video.module] = 0
 
         for sb_dic in module_dict.keys():
             module_count += 1
@@ -229,9 +248,14 @@ def start_payment(request):
         return Response({'Error': 'University not provided'}, status=status.HTTP_400_BAD_REQUEST)
         
     try:
-        branch = request.data['branch']
+        department = request.data['department']
     except KeyError:
-        return Response({'Error': 'Branch not provided'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'Error': 'Department not provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        specialization = request.data['specialization']
+    except KeyError:
+        return Response({'Error': 'Specialization not provided'}, status=status.HTTP_400_BAD_REQUEST)
         
     try:
         semester = request.data['semester']
@@ -255,10 +279,20 @@ def start_payment(request):
         return Response({'Error': 'Invalid provided data of university'}, status=status.HTTP_400_BAD_REQUEST)
         
     try:
-        branch_qry = Department.objects.get(title=branch)
+        department_qry = Department.objects.get(department=department)
     except Department.DoesNotExist:
         return Response({'Error': 'Invalid provided data of branch'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        specialization_qry = Specialization.objects.get(specialization=specialization)
+    except Specialization.DoesNotExist:
+        return Response({'Error': 'Invalid provided data of specialization'}, status=status.HTTP_400_BAD_REQUEST)
        
+    try:
+        semester_qry = Semester.objects.get(semester=semester)
+    except Semester.DoesNotExist:
+        return Response({'Error': 'Invalid provided data of semester'}, status=status.HTTP_400_BAD_REQUEST)
+
     client = razorpay.Client(auth=(env('PUBLIC_KEY'), env('SECRET_KEY')))
     payment = client.order.create({"amount": int(amount), 
                                    "currency": "INR", 
@@ -267,8 +301,9 @@ def start_payment(request):
     order = PurchasedCourse.objects.create(
                                  user=user,
                                  university=university_qry,
-                                 branch=branch_qry,
-                                 semester=semester, 
+                                 department=department_qry,
+                                 specialization=specialization_qry,
+                                 semester=semester_qry, 
                                  order_amount=amount, 
                                  order_payment_id=payment['id'])
 
